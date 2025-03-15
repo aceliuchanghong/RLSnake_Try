@@ -12,6 +12,7 @@ dependencies = [
     "pygame>=2.6.1",
     "python-dotenv>=1.0.1",
     "termcolor>=2.5.0",
+    "torch>=2.6.0",
 ]
 
 [tool.setuptools]
