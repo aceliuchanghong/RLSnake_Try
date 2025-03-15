@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "easy-media-utils>=0.1.5",
     "litserve>=0.2.6",
+    "numpy>=2.2.3",
     "openai>=1.65.4",
+    "pygame>=2.6.1",
     "python-dotenv>=1.0.1",
     "termcolor>=2.5.0",
 ]

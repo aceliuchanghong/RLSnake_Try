@@ -1,56 +1,31 @@
-提示词
-
----
-
-我想做`强化学习训练贪吃蛇`,我使用的是linux服务器,vscode连接之后远程开发
-我熟悉Python和PyTorch,但对强化学习不太懂(可以慢慢学)。
-预期流程:
-1. 搭建贪吃蛇游戏环境
-2. 设计神经网络模型（基于DQN）
-3. 实现DQN算法
-
-帮我反思一些是否正确的或者还需要什么?
-
----
-
-
-我想做`强化学习训练贪吃蛇`
-我使用的是linux服务器,vscode连接之后远程开发,我熟悉Python
-预期流程:
-```
-1. 搭建贪吃蛇游戏环境
-2. 设计神经网络模型（基于DQN）
-3. 实现DQN算法
-```
-第一步,我想是否需要搭建一个命令行可视化的游戏?
-
-如果是的话给出`搭建贪吃蛇游戏环境`代码,不是的话给出思路
-
----
-
-
----
-
-
-原始代码:
-```python
 import random
 import os
 import time
+from dotenv import load_dotenv
+import logging
+from termcolor import colored
+
+load_dotenv()
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s-%(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 
 class SnakeGame:
-    def __init__(self, width=10, height=10):
-        # 初始化游戏参数
+    def __init__(self, width=16, height=16, show=False):
         self.width = width
         self.height = height
-        # 蛇的初始位置（中心）
         self.snake = [(width // 2, height // 2)]
-        # 随机生成食物
         self.food = self._generate_food()
-        # 初始方向
         self.direction = "UP"
-        # 游戏是否结束
         self.game_over = False
+        self.show = show
+        self.steps = 0
+        self.score = 0
 
     def _generate_food(self):
         """随机生成食物位置，确保不在蛇身上"""
@@ -66,6 +41,7 @@ class SnakeGame:
         """执行一步动作，返回游戏状态"""
         if self.game_over:
             return
+        self.steps += 1
 
         # 根据动作更新方向（避免反向移动）
         if action == "UP" and self.direction != "DOWN":
@@ -102,232 +78,45 @@ class SnakeGame:
         # 移动蛇
         self.snake.insert(0, new_head)
         if new_head == self.food:
-            # 吃到食物，生成新食物，不缩短尾巴
+            # 吃到食物，生成新食物，不缩短尾巴，增加得分
             self.food = self._generate_food()
+            self.score += 1  # 增加得分
         else:
             # 未吃到食物，尾巴缩短
             self.snake.pop()
 
-    def render(self):
+    def render(self, speed=0.1):
         """在命令行中渲染游戏状态"""
-        os.system("clear" if os.name == "posix" else "cls")  # 清屏（Linux兼容）
+        if not self.show:
+            return
+
+        os.system("clear" if os.name == "posix" else "cls")
         for y in range(self.height):
             for x in range(self.width):
                 if (x, y) in self.snake:
                     if (x, y) == self.snake[0]:
-                        print("H", end=" ")  # 蛇头
+                        print(colored("H", "green"), end=" ")
                     else:
-                        print("S", end=" ")  # 蛇身
+                        print(colored("S", "yellow"), end=" ")
                 elif (x, y) == self.food:
-                    print("F", end=" ")  # 食物
+                    print(colored("F", "red"), end=" ")
                 else:
-                    print(".", end=" ")  # 空地
+                    print(".", end=" ")
             print()
-        time.sleep(0.1)  # 控制显示速度
+
+        print(
+            colored(
+                f"Steps: {self.steps}, Score: {self.score}, Direction: {self.direction}",
+                "cyan",
+            )
+        )
+        time.sleep(speed)
 
 
 if __name__ == "__main__":
-    game = SnakeGame()
+    game = SnakeGame(15, 15, show=True)
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
     while not game.game_over:
         action = random.choice(actions)
         game.step(action)
         game.render()
-```
-
-1. 增加显示移动步数和当前得分和当前蛇的前进方向 
-2. 增加show参数
-```python
-def __init__(self, ... show=False):
-        ...
-        self.show = show
-...
-```
-3. 只需要给出关键修改代码即可,其他使用...省略
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
-
-
-
----
-
-
-
-
----
