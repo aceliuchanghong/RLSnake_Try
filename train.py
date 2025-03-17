@@ -6,6 +6,9 @@ from rl_snake.SnakeEnv import SnakeEnv
 from rl_snake.DQN import DQNAgent
 
 if __name__ == "__main__":
+    """
+    uv run train.py
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = SnakeEnv(width=16, height=16, show=False)
     state_shape = (16, 16)
