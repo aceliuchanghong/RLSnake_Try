@@ -1,7 +1,4 @@
-import numpy as np
 import torch
-import torch.nn as nn
-
 from rl_snake.SnakeEnv import SnakeEnv
 from rl_snake.DQN import DQNAgent
 
@@ -14,13 +11,13 @@ if __name__ == "__main__":
     state_shape = (16, 16)
     num_actions = 4
 
-    agent = DQNAgent(state_shape, num_actions, batch_size=128)
+    agent = DQNAgent(state_shape, num_actions)
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
 
-    num_episodes = 1000
-    target_update_freq = 10
+    num_epochs = 4096
+    target_update_freq = 128
 
-    for episode in range(num_episodes):
+    for epoch in range(num_epochs):
         state = env.reset()
         total_reward = 0
         done = False
@@ -33,11 +30,9 @@ if __name__ == "__main__":
             total_reward += reward
             agent.update()
 
-        if episode % target_update_freq == 0:
+        if epoch % target_update_freq == 0:
             agent.update_target_net()
 
-        print(
-            f"Episode {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}"
-        )
-
-    torch.save(agent.policy_net.state_dict(), "dqn_snake.pth")
+        print(f"Epoch {epoch}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+        if (epoch + 1) % 1024 == 0:
+            torch.save(agent.policy_net.state_dict(), f"dqn_snake_{str(epoch+1)}.pth")

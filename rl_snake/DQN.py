@@ -28,8 +28,9 @@ class DQN(nn.Module):
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(64 * input_shape[0] * input_shape[1], 512)
-        self.fc2 = nn.Linear(512, num_actions)
+        self.fc1 = nn.Linear(64 * input_shape[0] * input_shape[1], 1024)
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc3 = nn.Linear(512, num_actions)
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x):
@@ -39,13 +40,14 @@ class DQN(nn.Module):
         x = x.view(x.size(0), -1)  # (B, 64 * 16 * 16) -> (B, 16384)
         x = torch.relu(self.fc1(x))
         x = self.dropout(x)
-        x = self.fc2(x)  # (B, num_actions)
+        x = self.fc2(x)
+        x = self.fc3(x)  # (B, num_actions)
         return x
 
 
 class DQNAgent:
     """
-    状态的形状、动作的数量、学习率、折扣因子、探索率、最小探索率、探索衰减率、回放缓冲区大小和 batch大小
+    状态的形状、动作的数量、学习率、折扣因子、探索率、最小探索率、探索衰减率、回放缓冲区大小和batch大小
     """
 
     def __init__(
@@ -56,9 +58,9 @@ class DQNAgent:
         gamma=0.99,
         epsilon=1.0,
         epsilon_min=0.01,
-        epsilon_decay=0.995,
-        buffer_size=10000,
-        batch_size=32,
+        epsilon_decay=0.98,
+        buffer_size=50000,
+        batch_size=128,
     ):
         self.state_shape = state_shape
         self.num_actions = num_actions

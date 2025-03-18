@@ -2,6 +2,7 @@ import random
 import os
 import time
 from termcolor import colored
+import numpy as np
 
 
 class SnakeGame:
@@ -73,6 +74,15 @@ class SnakeGame:
         else:
             # 未吃到食物，尾巴缩短
             self.snake.pop()
+
+    def get_state(self):
+        """获取当前状态，用二维数组表示游戏板"""
+        state = np.zeros((self.height, self.width), dtype=np.float32)
+        for x, y in self.snake:
+            state[y, x] = 1.0  # 蛇身标记为1
+        state[self.snake[0][1], self.snake[0][0]] = 0.5  # 蛇头标记为0.5
+        state[self.food[1], self.food[0]] = -1.0  # 食物标记为-1
+        return state
 
     def render(self, speed=0.1):
         """在命令行中渲染游戏状态"""

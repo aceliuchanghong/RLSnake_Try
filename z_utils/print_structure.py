@@ -8,7 +8,7 @@ from tree_utils.struct_tree_out import print_tree
 #     os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")),
 # )
 
-path = "../my_python_template"
+path = "../RLSnake_Try"
 
 exclude_dirs_set = {
     "z_utils",
@@ -23,6 +23,7 @@ exclude_dirs_set = {
     "package-lock.json",
     "node_modules",
     "z_using_files",
+    "readme.md",
 }
 print_tree(directory=path, exclude_dirs=exclude_dirs_set)
 # uv run z_utils/print_structure.py
