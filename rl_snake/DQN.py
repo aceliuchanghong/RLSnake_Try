@@ -28,10 +28,10 @@ class DQN(nn.Module):
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(64 * input_shape[0] * input_shape[1], 1024)
-        self.fc2 = nn.Linear(1024, 512)
-        self.fc3 = nn.Linear(512, num_actions)
-        self.dropout = nn.Dropout(p=dropout)
+        self.fc1 = nn.Linear(64 * input_shape[0] * input_shape[1], 2048)
+        self.fc2 = nn.Linear(2048, 1024)
+        self.fc3 = nn.Linear(1024, num_actions)
+        # self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x):
         # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
@@ -39,8 +39,8 @@ class DQN(nn.Module):
         x = torch.relu(self.conv2(x))
         x = x.view(x.size(0), -1)  # (B, 64 * 16 * 16) -> (B, 16384)
         x = torch.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.fc2(x)
+        # x = self.dropout(x)
+        x = torch.relu(self.fc2(x))
         x = self.fc3(x)  # (B, num_actions)
         return x
 
@@ -58,7 +58,7 @@ class DQNAgent:
         gamma=0.99,
         epsilon=1.0,
         epsilon_min=0.01,
-        epsilon_decay=0.98,
+        epsilon_decay=0.995,
         buffer_size=50000,
         batch_size=128,
     ):

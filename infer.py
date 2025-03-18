@@ -1,5 +1,5 @@
 import torch
-from snake.SnakeGameMain import SnakeGame
+from rl_snake.SnakeEnv import SnakeEnv
 from rl_snake.DQN import DQNAgent
 
 if __name__ == "__main__":
@@ -7,7 +7,7 @@ if __name__ == "__main__":
     uv run infer.py
     """
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
-    game = SnakeGame(show=True)
+    game = SnakeEnv(show=True)
 
     state_shape = (16, 16)
     num_actions = 4
@@ -17,6 +17,7 @@ if __name__ == "__main__":
     )
     agent.policy_net.to(device)
     agent.policy_net.eval()
+    reward = 0
 
     while not game.game_over:
         state = game.get_state()
@@ -25,5 +26,6 @@ if __name__ == "__main__":
             q_values = agent.policy_net(state_tensor)
         action_idx = q_values.argmax().item()
         action = ["UP", "DOWN", "LEFT", "RIGHT"][action_idx]
-        game.step(action)
-        game.render(speed=0.01)
+        _, reward_now, _ = game.step(action)
+        reward += reward_now
+        game.render(speed=0.1, other_info={"Reward": reward})

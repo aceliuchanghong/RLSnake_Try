@@ -16,6 +16,7 @@ class SnakeGame:
         self.show = show
         self.steps = 0
         self.score = 0
+        self.current_steps = 0
 
     def _generate_food(self):
         """随机生成食物位置，确保不在蛇身上"""
@@ -84,7 +85,7 @@ class SnakeGame:
         state[self.food[1], self.food[0]] = -1.0  # 食物标记为-1
         return state
 
-    def render(self, speed=0.1):
+    def render(self, speed=0.1, other_info={}):
         """在命令行中渲染游戏状态"""
         if not self.show:
             return
@@ -103,10 +104,12 @@ class SnakeGame:
                     print(".", end=" ")
             print()
 
-        print(
-            colored(
-                f"Steps: {self.steps}, Score: {self.score}, Direction: {self.direction}",
-                "cyan",
-            )
+        info_str = (
+            f"Steps: {self.steps}, Score: {self.score}, Direction: {self.direction}"
         )
+        if other_info:
+            info_str += ", " + ", ".join(
+                f"{str(key)}: {str(value)}" for key, value in other_info.items()
+            )
+        print(colored(info_str, "cyan"))
         time.sleep(speed)

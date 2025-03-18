@@ -14,8 +14,8 @@ if __name__ == "__main__":
     agent = DQNAgent(state_shape, num_actions)
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
 
-    num_epochs = 4096
-    target_update_freq = 128
+    num_epochs = 10000
+    target_update_freq = 1000
 
     for epoch in range(num_epochs):
         state = env.reset()
@@ -30,9 +30,9 @@ if __name__ == "__main__":
             total_reward += reward
             agent.update()
 
-        if epoch % target_update_freq == 0:
+        if (epoch + 1) % target_update_freq == 0:
             agent.update_target_net()
-
+            torch.save(
+                agent.policy_net.state_dict(), f"dqn_snake_best_{str(epoch+1)}.pth"
+            )
         print(f"Epoch {epoch}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
-        if (epoch + 1) % 1024 == 0:
-            torch.save(agent.policy_net.state_dict(), f"dqn_snake_{str(epoch+1)}.pth")
