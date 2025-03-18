@@ -14,7 +14,7 @@ if __name__ == "__main__":
     state_shape = (16, 16)
     num_actions = 4
 
-    agent = DQNAgent(state_shape, num_actions)
+    agent = DQNAgent(state_shape, num_actions, batch_size=128)
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
 
     num_episodes = 1000

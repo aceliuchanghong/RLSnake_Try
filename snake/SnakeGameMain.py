@@ -100,12 +100,3 @@ class SnakeGame:
             )
         )
         time.sleep(speed)
-
-
-if __name__ == "__main__":
-    game = SnakeGame(15, 15, show=True)
-    actions = ["UP", "DOWN", "LEFT", "RIGHT"]
-    while not game.game_over:
-        action = random.choice(actions)
-        game.step(action)
-        game.render()
