@@ -37,29 +37,31 @@ class SnakeEnv(SnakeGame):
 
         super().step(action)
         self.current_steps += 1
-        reward = -0.01  # 每步小惩罚，鼓励快速吃到食物
+        reward = -0.05  # 每步小惩罚，鼓励快速吃到食物
+
         if self.game_over:
-            # 输掉游戏的惩罚，始终为负且与蛇的长度成正比
-            reward = -5 - 0.5 * len(self.snake)
+            # 简化游戏结束的惩罚，设置为固定值
+            reward = -10
         else:
             if self.snake[0] == self.food:
-                # 吃到食物的奖励，与蛇的长度成正比
-                reward = 10 + 0.5 * (len(self.snake) - 1)
+                # 显著增加吃到食物的奖励
+                reward = 20
                 self.prev_distance = None  # 重置距离，因为食物位置会改变
             else:
-                # 接近或远离食物的奖励
+                # 调整接近或远离食物的奖励权重
                 current_distance = self._calculate_distance(self.snake[0], self.food)
                 if self.prev_distance is not None:
                     if current_distance < self.prev_distance:
-                        reward += 0.3  # 接近食物
+                        reward += 1.0  # 增加接近食物的奖励
                     elif current_distance > self.prev_distance:
-                        reward -= 0.2  # 远离食物
+                        reward -= 0.8  # 增加远离食物的惩罚
                     else:
-                        reward -= 0.05  # 距离不变
+                        reward -= 0.2  # 距离不变时的惩罚
                 self.prev_distance = current_distance
-        # 一直循环,大惩罚
+
+        # 防止无限循环
         if self.current_steps >= self.max_steps:
             self.game_over = True
-            reward = -50
+            reward = -20  # 降低循环的惩罚，但仍保持负值
 
         return self.get_state(), reward, self.game_over
