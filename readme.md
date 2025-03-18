@@ -16,29 +16,12 @@
 
 #### 第一次模型
 
-只会上下走,维持不死
-
-```python
-# 当前奖励算法
-if self.game_over:
-    reward = -1  # 撞墙或撞自己，负奖励
-elif self.snake[0] == self.food:
-    reward = 1  # 吃到食物，正奖励
-else:
-    reward = -0.01  # 每步小负奖励，鼓励快速吃到食物
-return self.get_state(), reward, self.game_over
-```
-
-![](z_using_files/describe_imgs/01.png)
-
-#### 第二次模型
-
-似乎不太想吃食物
+似乎不太想吃食物,不断远离食物,靠近食物
 
 ```python
 奖励函数的设计如下：
 
-游戏结束：奖励为 5 - 10 / (1 + 0.1 * (len(self.snake) - 1))，惩罚与蛇长度反比。
+游戏结束：奖励为 - 5 - 10 / (1 + 0.1 * (len(self.snake) - 1))，惩罚与蛇长度反比。
 吃到食物：奖励为 5 + 0.3 * (len(self.snake) - 1)，奖励与蛇长度正比。
 未吃到食物：
 接近食物：+0.3
@@ -48,6 +31,38 @@ return self.get_state(), reward, self.game_over
 ```
 
 ![](z_using_files/describe_imgs/02.png)
+
+#### 第二次模型
+
+很容易死+偶尔转圈圈,但是好歹跑起来了
+
+```python
+if self.game_over:
+    # 简化游戏结束的惩罚，设置为固定值
+    reward = -10
+else:
+    if self.snake[0] == self.food:
+        # 显著增加吃到食物的奖励
+        reward = 20
+        self.prev_distance = None  # 重置距离，因为食物位置会改变
+    else:
+        # 调整接近或远离食物的奖励权重
+        current_distance = self._calculate_distance(self.snake[0], self.food)
+        if self.prev_distance is not None:
+            if current_distance < self.prev_distance:
+                reward += 1.0  # 增加接近食物的奖励
+            elif current_distance > self.prev_distance:
+                reward -= 0.8  # 增加远离食物的惩罚
+            else:
+                reward -= 0.2  # 距离不变时的惩罚
+                self.prev_distance = current_distance
+        # 防止无限循环
+if self.current_steps >= self.max_steps:
+    self.game_over = True
+    reward = -20
+```
+
+![](z_using_files/describe_imgs/01.gif)
 
 ### install
 
@@ -79,7 +94,7 @@ RLSnake_Try/
 
 ### TODO List
 
-- [ ] 给出的模型可以游戏通关
+- [ ] 游戏通关
 - [ ] 适配多种长宽的屏幕
 - [ ] 提出新的的奖励算法
 - [ ] 给出文章和视频教学

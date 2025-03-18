@@ -24,7 +24,7 @@ if __name__ == "__main__":
         while not done:
             action_idx = agent.select_action(state)
             action = actions[action_idx]
-            next_state, reward, done = env.step(action)
+            next_state, reward, steps, done = env.step(action)
             agent.memory.push(state, action_idx, reward, next_state, done)
             state = next_state
             total_reward += reward
@@ -35,4 +35,6 @@ if __name__ == "__main__":
             torch.save(
                 agent.policy_net.state_dict(), f"dqn_snake_best_{str(epoch+1)}.pth"
             )
-        print(f"Epoch {epoch}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+        print(
+            f"Epoch {epoch}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}, Steps: {steps}"
+        )

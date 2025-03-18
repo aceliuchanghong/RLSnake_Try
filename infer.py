@@ -26,6 +26,6 @@ if __name__ == "__main__":
             q_values = agent.policy_net(state_tensor)
         action_idx = q_values.argmax().item()
         action = ["UP", "DOWN", "LEFT", "RIGHT"][action_idx]
-        _, reward_now, _ = game.step(action)
+        _, reward_now, _, _ = game.step(action)
         reward += reward_now
         game.render(speed=0.1, other_info={"Reward": reward})
