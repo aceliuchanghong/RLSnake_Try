@@ -17,7 +17,7 @@ if __name__ == "__main__":
     )
     agent.policy_net.to(device)
     agent.policy_net.eval()
-    reward = 0
+    total_reward = 0
 
     while not game.game_over:
         state = game.get_state()
@@ -27,5 +27,5 @@ if __name__ == "__main__":
         action_idx = q_values.argmax().item()
         action = ["UP", "DOWN", "LEFT", "RIGHT"][action_idx]
         _, reward_now, _, _ = game.step(action)
-        reward += reward_now
-        game.render(speed=0.1, other_info={"Reward": reward})
+        total_reward += reward_now
+        game.render(speed=0.05, other_info={"Reward": total_reward})

@@ -32,27 +32,27 @@ class SnakeEnv(SnakeGame):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
     def step(self, action):
+        prev_length = len(self.snake)
         super().step(action)
-        reward = -0.01
+        reward = 0.01  # 生存奖励
         if self.game_over:
             reward = -20
         else:
-            if self.snake[0] == self.food:
-                reward = 20 + 2 * (len(self.snake) - 1)  # 增加吃食物奖励
+            if len(self.snake) > prev_length:
+                reward = 50 + 0.5 * (len(self.snake) - 1)  # 吃食物奖励
                 self.current_steps = 0
                 self.prev_distance = None
             else:
                 current_distance = self._calculate_distance(self.snake[0], self.food)
                 if self.prev_distance is not None:
                     if current_distance < self.prev_distance:
-                        reward += 0.5  # 接近奖励
+                        reward += 0.1  # 接近奖励
                     elif current_distance > self.prev_distance:
-                        reward -= 0.5  # 远离惩罚
-                    else:
-                        reward -= 0.1  # 不变惩罚
+                        reward -= 0.12  # 远离惩罚
                 self.prev_distance = current_distance
                 self.current_steps += 1
         if self.current_steps >= self.max_steps:
             self.game_over = True
-            reward = -40
+            reward = -20  # 长时间循环惩罚
+
         return self.get_state(), reward, self.steps, self.game_over

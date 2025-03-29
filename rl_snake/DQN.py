@@ -28,9 +28,9 @@ class DQN(nn.Module):
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
         self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(32 * input_shape[0] * input_shape[1], 1024)
-        self.fc2 = nn.Linear(1024, 256)
-        self.fc3 = nn.Linear(256, num_actions)
+        self.fc1 = nn.Linear(32 * input_shape[0] * input_shape[1], 512)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, num_actions)
 
     def forward(self, x):
         # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
@@ -53,11 +53,11 @@ class DQNAgent:
         state_shape,
         num_actions,
         lr=1e-4,
-        gamma=0.8,
+        gamma=0.99,
         epsilon=1.0,
         epsilon_min=0.05,
         epsilon_decay=0.9998,
-        buffer_size=100000,
+        buffer_size=1000000,
         batch_size=256,
     ):
         self.state_shape = state_shape
@@ -166,9 +166,12 @@ class DQNAgent:
             # 使用 target_net 计算下一状态的最大 Q 值
             max_next_q_values = self.target_net(next_states).max(1)[0]
             # 计算目标 Q 值
+            # 当 done = True 时，1 - done = 0，未来奖励（self.gamma * max_next_q_values）被屏蔽。
+            # 当 done = False 时，1 - done = 1，未来奖励被保留。
             target_q_values = rewards + (1 - dones) * self.gamma * max_next_q_values
 
         loss = F.mse_loss(current_q_values, target_q_values)
+        # loss = F.smooth_l1_loss(current_q_values, target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
