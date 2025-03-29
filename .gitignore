@@ -173,4 +173,4 @@ no_git_oic
 00.md
 node_modules/
 .vscode/
-dqn_snake*.pth
+dqn_snake_best_*.pth

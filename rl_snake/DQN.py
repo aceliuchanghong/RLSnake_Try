@@ -13,49 +13,49 @@ sys.path.insert(
 from rl_snake.ReplayBuffer import ReplayBuffer
 
 
-# class DQN(nn.Module):
-#     """
-#     Deep Q-Network
-
-#     - **输入**:状态是16x16的二维数组,加上通道维度后为(1, 16, 16)。
-#     - **卷积层**:提取游戏板的空间特征。
-#     - **全连接层**:将特征映射到4个动作的Q值。
-#     - **输出**:4个Q值,对应`UP`, `DOWN`, `LEFT`, `RIGHT`。
-#     """
-
-#     def __init__(self, input_shape, num_actions, dropout=0.2):
-#         super(DQN, self).__init__()
-#         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
-#         self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1)
-#         self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1)
-#         self.fc1 = nn.Linear(16 * input_shape[0] * input_shape[1], 1024)
-#         self.fc2 = nn.Linear(1024, 256)
-#         self.fc3 = nn.Linear(256, num_actions)
-
-#     def forward(self, x):
-#         # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
-#         x = torch.relu(self.conv1(x))  # (1, 1, 16, 16)==>(1, 32, 16, 16)
-#         x = torch.relu(self.conv2(x))
-#         x = x.view(x.size(0), -1)  # (B, 64 * 16 * 16) -> (B, 16384)
-#         x = torch.relu(self.fc1(x))
-#         x = torch.relu(self.fc2(x))
-#         x = self.fc3(x)  # (B, num_actions)
-#         return x
-
-
 class DQN(nn.Module):
-    def __init__(self, input_shape, num_actions):
+    """
+    Deep Q-Network
+
+    - **输入**:状态是16x16的二维数组,加上通道维度后为(1, 16, 16)。
+    - **卷积层**:提取游戏板的空间特征。
+    - **全连接层**:将特征映射到4个动作的Q值。
+    - **输出**:4个Q值,对应`UP`, `DOWN`, `LEFT`, `RIGHT`。
+    """
+
+    def __init__(self, input_shape, num_actions, dropout=0.2):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_shape[0] * input_shape[1], 128)  # 输入256维
-        self.fc2 = nn.Linear(128, 32)
-        self.fc3 = nn.Linear(32, num_actions)
+        # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
+        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(16 * input_shape[0] * input_shape[1], 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, num_actions)
 
     def forward(self, x):
-        x = x.view(x.size(0), -1)  # 展平为(batch_size, 256)
+        # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
+        x = torch.relu(self.conv1(x))  # (1, 1, 16, 16)==>(1, 32, 16, 16)
+        x = torch.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)  # (B, 64 * 16 * 16) -> (B, 16384)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.fc3(x)  # (B, num_actions)
         return x
+
+
+# class DQN(nn.Module):
+#     def __init__(self, input_shape, num_actions):
+#         super(DQN, self).__init__()
+#         self.fc1 = nn.Linear(input_shape[0] * input_shape[1], 128)  # 输入256维
+#         self.fc2 = nn.Linear(128, 32)
+#         self.fc3 = nn.Linear(32, num_actions)
+
+#     def forward(self, x):
+#         x = x.view(x.size(0), -1)  # 展平为(batch_size, 256)
+#         x = torch.relu(self.fc1(x))
+#         x = torch.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
 
 
 class DQNAgent:
