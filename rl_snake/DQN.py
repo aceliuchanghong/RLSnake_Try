@@ -26,11 +26,11 @@ class DQN(nn.Module):
     def __init__(self, input_shape, num_actions, dropout=0.2):
         super(DQN, self).__init__()
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(32 * input_shape[0] * input_shape[1], 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, num_actions)
+        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(16 * input_shape[0] * input_shape[1], 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, num_actions)
 
     def forward(self, x):
         # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
@@ -56,7 +56,7 @@ class DQNAgent:
         gamma=0.99,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.9998,
+        epsilon_decay=0.99986,
         buffer_size=1000000,
         batch_size=256,
     ):
