@@ -32,37 +32,27 @@ class SnakeEnv(SnakeGame):
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
     def step(self, action):
-        """执行一步动作,返回其执行完之后的状态、奖励和是否结束"""
-        # 各个奖励项的权重（例如 0.1、0.01）需要通过实验调整，确保它们不会相互抵消或导致学习不稳定
-
         super().step(action)
-        reward = -0.05  # 每步小惩罚，鼓励快速吃到食物
-
+        reward = -0.01
         if self.game_over:
-            # 游戏结束的惩罚，设置为固定值
-            reward = -10
+            reward = -20
         else:
             if self.snake[0] == self.food:
-                # 显著增加吃到食物的奖励
-                reward = 20 + 0.75 * (len(self.snake) - 1)
+                reward = 20 + 2 * (len(self.snake) - 1)  # 增加吃食物奖励
                 self.current_steps = 0
-                self.prev_distance = None  # 重置距离，因为食物位置会改变
+                self.prev_distance = None
             else:
-                # 调整接近或远离食物的奖励权重
                 current_distance = self._calculate_distance(self.snake[0], self.food)
                 if self.prev_distance is not None:
                     if current_distance < self.prev_distance:
-                        reward += 1.0  # 增加接近食物的奖励
+                        reward += 0.5  # 接近奖励
                     elif current_distance > self.prev_distance:
-                        reward -= 1.0  # 增加远离食物的惩罚
+                        reward -= 0.5  # 远离惩罚
                     else:
-                        reward -= 0.2  # 距离不变时的惩罚
+                        reward -= 0.1  # 不变惩罚
                 self.prev_distance = current_distance
-
-        # 防止无限循环
+                self.current_steps += 1
         if self.current_steps >= self.max_steps:
             self.game_over = True
             reward = -40
-        self.current_steps += 1
-
         return self.get_state(), reward, self.steps, self.game_over

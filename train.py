@@ -7,7 +7,7 @@ if __name__ == "__main__":
     uv run train.py
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    env = SnakeEnv(width=16, height=16, show=False)
+    env = SnakeEnv(width=16, height=16)
     state_shape = (16, 16)
     num_actions = 4
 
@@ -15,7 +15,9 @@ if __name__ == "__main__":
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
 
     num_epochs = 10000
-    target_update_freq = 1000
+    target_update_freq = 100
+    target_save_freq = 1000
+    max_foods = 0
 
     for epoch in range(num_epochs):
         state = env.reset()
@@ -32,9 +34,17 @@ if __name__ == "__main__":
 
         if (epoch + 1) % target_update_freq == 0:
             agent.update_target_net()
+        if (epoch + 1) % target_save_freq == 0:
             torch.save(
                 agent.policy_net.state_dict(), f"dqn_snake_best_{str(epoch+1)}.pth"
             )
+        max_foods = env.score if env.score > max_foods else max_foods
         print(
-            f"Epoch {epoch}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}, Steps: {steps}"
+            f"Epochs {epoch:5}, Rewards: {total_reward:.2f}, Foods: {env.score:3}-{max_foods},"
+            + (
+                f" Epsilon: {agent.epsilon:.2f},"
+                if agent.epsilon >= agent.epsilon_min
+                else ""
+            )
+            + f" Steps: {steps:5}"
         )

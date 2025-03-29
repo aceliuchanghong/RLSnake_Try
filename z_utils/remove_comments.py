@@ -58,6 +58,10 @@ if __name__ == "__main__":
         --input rl_snake/DQN.py \
         --output 00.py \
         --print
+    
+    uv run z_utils/remove_comments.py \
+        --input rl_snake/SnakeEnv.py \
+        --output 00.py
     """
     parser = argparse.ArgumentParser(description="Remove comments from a Python file.")
     parser.add_argument(

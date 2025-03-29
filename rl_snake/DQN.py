@@ -26,12 +26,11 @@ class DQN(nn.Module):
     def __init__(self, input_shape, num_actions, dropout=0.2):
         super(DQN, self).__init__()
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(64 * input_shape[0] * input_shape[1], 2048)
-        self.fc2 = nn.Linear(2048, 1024)
-        self.fc3 = nn.Linear(1024, num_actions)
-        # self.dropout = nn.Dropout(p=dropout)
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(32 * input_shape[0] * input_shape[1], 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, num_actions)
 
     def forward(self, x):
         # 输入张量 x 的形状是 (1, 16, 16)，为了适应卷积层的要求，PyTorch 会自动将这个张量视为一个四维张量，其形状变为：(1, 1, 16, 16)
@@ -39,7 +38,6 @@ class DQN(nn.Module):
         x = torch.relu(self.conv2(x))
         x = x.view(x.size(0), -1)  # (B, 64 * 16 * 16) -> (B, 16384)
         x = torch.relu(self.fc1(x))
-        # x = self.dropout(x)
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)  # (B, num_actions)
         return x
@@ -55,16 +53,29 @@ class DQNAgent:
         state_shape,
         num_actions,
         lr=1e-4,
-        gamma=0.99,
+        gamma=0.8,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.99985,
+        epsilon_decay=0.9998,
         buffer_size=100000,
         batch_size=256,
     ):
         self.state_shape = state_shape
         self.num_actions = num_actions
-        self.gamma = gamma  # 折扣因子
+        """
+        折扣因子==>为了在计算未来奖励的折现值时，平衡当前奖励和未来奖励的重要性
+        假设你有两种选择：
+        1. **选择 A**：今天立刻得到 100 元。
+        2. **选择 B**：今天什么都没有，但一年后可以得到 200 元。
+
+        #### **分析：**
+        - 如果更看重**眼前的奖励**，会选择 A
+        - 如果愿意**等待未来的更大奖励**，会选择 B
+
+        但是，未来的事情是不确定的。比如，一年后承诺给你的 200 元可能因为各种原因（经济危机、对方反悔等）无法兑现。
+        所以，未来的奖励需要打个折扣，才能和今天的奖励进行比较。
+        """
+        self.gamma = gamma
         self.epsilon = epsilon  # 探索率
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
@@ -73,7 +84,7 @@ class DQNAgent:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # 策略网络 用于选择动作
         self.policy_net = DQN(state_shape, num_actions).to(self.device)
-        # 目标网络 用于稳定训练, 其初始时 target_net 的权重与 policy_net 一致。
+        # 目标网络 用于稳定训练, 设置为评估模式（不参与梯度更新)
         self.target_net = DQN(state_shape, num_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
