@@ -13,7 +13,7 @@ class SnakeEnv(SnakeGame):
     def __init__(self, width=16, height=16, show=False):
         super().__init__(width, height, show)
         self.prev_distance = None  # 上一步蛇头到食物的距离
-        self.max_steps = width * height - 1
+        self.max_steps = width * height * 2 - 1
 
     def reset(self):
         """重置游戏，返回初始状态"""
@@ -41,15 +41,15 @@ class SnakeEnv(SnakeGame):
             if len(self.snake) > prev_length:
                 reward = 20 + 0.5 * (len(self.snake) - 1)  # 吃食物奖励
                 self.current_steps = 0
-                # self.prev_distance = None
+                self.prev_distance = None
             else:
-                # current_distance = self._calculate_distance(self.snake[0], self.food)
-                # if self.prev_distance is not None:
-                #     if current_distance < self.prev_distance:
-                #         reward += 0.1  # 接近奖励
-                #     elif current_distance > self.prev_distance:
-                #         reward -= 0.12  # 远离惩罚
-                # self.prev_distance = current_distance
+                current_distance = self._calculate_distance(self.snake[0], self.food)
+                if self.prev_distance is not None:
+                    if current_distance < self.prev_distance:
+                        reward += 0.3  # 接近奖励
+                    elif current_distance > self.prev_distance:
+                        reward -= 0.32  # 远离惩罚
+                self.prev_distance = current_distance
                 self.current_steps += 1
         if self.current_steps >= self.max_steps:
             self.game_over = True

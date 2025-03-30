@@ -70,10 +70,10 @@ class DQNAgent:
         lr=1e-3,
         gamma=0.99,
         epsilon=1.0,
-        epsilon_min=0.05,
+        epsilon_min=0.02,
         epsilon_decay=0.999,
         buffer_size=100000,
-        batch_size=256,
+        batch_size=512,
     ):
         self.state_shape = state_shape
         self.num_actions = num_actions

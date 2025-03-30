@@ -1,6 +1,20 @@
 import torch
 from rl_snake.SnakeEnv import SnakeEnv
 from rl_snake.DQN import DQNAgent
+import os
+from dotenv import load_dotenv
+import logging
+from termcolor import colored
+import csv
+
+load_dotenv()
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s-%(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     """
@@ -21,6 +35,7 @@ if __name__ == "__main__":
     update_freq = 20  # 每20步更新一次网络
     step_counter = 0  # 全局步数计数器
     max_foods = 0
+    file_path = "no_git_oic/train.csv"
 
     from collections import deque
 
@@ -47,16 +62,26 @@ if __name__ == "__main__":
 
         if (epoch + 1) % target_update_freq == 0:
             agent.update_target_net()
+
             avg_reward = sum(recent_rewards) / len(recent_rewards)
-            print(
-                f"\n-------Average Reward: {avg_reward:.2f}-------"
-                + f"\nEpochs {epoch:5}, Rewards: {epoch_reward:.2f}, Foods: {env.score:3}-{max_foods},"
-                + (
-                    f" Epsilon: {agent.epsilon:.2f},"
-                    if agent.epsilon >= agent.epsilon_min
-                    else ""
+            file_exists = os.path.isfile(file_path) and os.path.getsize(file_path) > 0
+            with open(file_path, mode="a", newline="") as file:
+                writer = csv.writer(file)
+                if not file_exists:
+                    writer.writerow(["Epochs", "Average_Reward"])
+                writer.writerow([epoch + 1, avg_reward])
+            logger.info(
+                colored(
+                    f"\n-------Average Reward: {avg_reward:.2f}-------"
+                    + f"\nEpochs {(epoch+1):5}, Rewards: {epoch_reward:.2f}, Foods: {env.score:3}-{max_foods},"
+                    + (
+                        f" Epsilon: {agent.epsilon:.2f},"
+                        if agent.epsilon >= agent.epsilon_min
+                        else ""
+                    )
+                    + f" Steps: {steps:5}",
+                    "green",
                 )
-                + f" Steps: {steps:5}"
             )
         if (epoch + 1) % target_save_freq == 0:
             torch.save(

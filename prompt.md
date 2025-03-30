@@ -2485,6 +2485,171 @@ while not done:
 
 
 
+在贪吃蛇的强化学习中,代码实现如下:
+
+train.py:
+```python
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+env = SnakeEnv(width=16, height=16)
+state_shape = (16, 16)
+num_actions = 4
+agent = DQNAgent(state_shape, num_actions)
+actions = ["UP", "DOWN", "LEFT", "RIGHT"]
+num_epochs = 100000
+target_update_freq = 200
+target_save_freq = 2000
+update_freq = 20
+step_counter = 0
+max_foods = 0
+from collections import deque
+
+recent_rewards = deque(maxlen=target_update_freq)
+for epoch in range(num_epochs):
+    state = env.reset()
+    epoch_reward = 0
+    done = False
+    while not done:
+        action_idx = agent.select_action(state)
+        action = actions[action_idx]
+        next_state, reward, steps, done = env.step(action)
+        agent.memory.push(state, action_idx, reward, next_state, done)
+        state = next_state
+        epoch_reward += reward
+        step_counter += 1
+        if step_counter % update_freq == 0:
+            agent.update()
+    recent_rewards.append(epoch_reward)
+    max_foods = env.score if env.score > max_foods else max_foods
+    if (epoch + 1) % target_update_freq == 0:
+        agent.update_target_net()
+        avg_reward = sum(recent_rewards) / len(recent_rewards)
+        print(f"\n-------Average Reward: {avg_reward:.2f}-------")
+    if (epoch + 1) % target_save_freq == 0:
+        torch.save(
+            agent.policy_net.state_dict(),
+            f"snake_best_{str(epoch+1)}.pth",
+        )
+```
+
+```python
+class SnakeEnv(SnakeGame):
+    def __init__(self, width=16, height=16, show=False):
+        super().__init__(width, height, show)
+        self.prev_distance = None
+        self.max_steps = width * height - 1
+    def reset(self):
+        self.snake = [(self.width // 2, self.height // 2)]
+        self.food = self._generate_food()
+        self.direction = "UP"
+        self.game_over = False
+        self.steps = 0
+        self.score = 0
+        self.current_steps = 0
+        return self.get_state()
+    def step(self, action):
+        prev_length = len(self.snake)
+        super().step(action)
+        reward = -0.1
+        if self.game_over:
+            reward = -10
+        else:
+            if len(self.snake) > prev_length:
+                reward = 20 + 0.5 * (len(self.snake) - 1)
+                self.current_steps = 0
+            else:
+                self.current_steps += 1
+        if self.current_steps >= self.max_steps:
+            self.game_over = True
+            reward = -10
+        return self.get_state(), reward, self.steps, self.game_over
+```
+
+agent:
+```python
+class DQN(nn.Module):
+    def __init__(self, input_shape, num_actions, dropout=0.2):
+        super(DQN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(16 * input_shape[0] * input_shape[1], 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, num_actions)
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+class DQNAgent:
+    def __init__(
+        self,
+        state_shape,
+        num_actions,
+        lr=1e-3,
+        gamma=0.99,
+        epsilon=1.0,
+        epsilon_min=0.05,
+        epsilon_decay=0.999,
+        buffer_size=10000,
+        batch_size=256,
+    ):
+        self.state_shape = state_shape
+        self.num_actions = num_actions
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
+        self.batch_size = batch_size
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.policy_net = DQN(state_shape, num_actions).to(self.device)
+        self.target_net = DQN(state_shape, num_actions).to(self.device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_net.eval()
+        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=lr)
+        self.memory = ReplayBuffer(buffer_size)
+    def select_action(self, state):
+        if random.random() < self.epsilon:
+            return random.randint(0, self.num_actions - 1)
+        else:
+            state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                q_values = self.policy_net(state)
+            return q_values.argmax().item()
+    def update(self):
+        if len(self.memory) < self.batch_size:
+            return
+        batch = self.memory.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+        states = torch.FloatTensor(np.array(states)).unsqueeze(1).to(self.device)
+        actions = torch.LongTensor(actions).to(self.device)
+        rewards = torch.FloatTensor(rewards).to(self.device)
+        next_states = (
+            torch.FloatTensor(np.array(next_states)).unsqueeze(1).to(self.device)
+        )
+        dones = torch.FloatTensor(dones).to(self.device)
+        current_q_values = (
+            self.policy_net(states)
+            .gather(1, actions.unsqueeze(1))
+            .squeeze(1)
+        )
+        with torch.no_grad():
+            max_next_q_values = self.target_net(next_states).max(1)[0]
+            target_q_values = rewards + (1 - dones) * self.gamma * max_next_q_values
+        loss = F.smooth_l1_loss(current_q_values, target_q_values)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+    def update_target_net(self):
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+```
+
+1. 100000次训练的模型效果只能最多吃到30个果子,一般只能吃到14个,容易撞着自己
+2. 分析代码,给出修改方案,并且指出现在的弊病
+
 
 ---
 
