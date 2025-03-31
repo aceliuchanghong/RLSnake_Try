@@ -26,9 +26,12 @@ class DQN(nn.Module):
     def __init__(self, input_shape, num_actions, dropout=0.2):
         super(DQN, self).__init__()
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
-        self.conv1 = nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(16 * input_shape[0] * input_shape[1], 1024)
+        start_dim = 16
+        self.conv1 = nn.Conv2d(1, start_dim, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(
+            start_dim, start_dim * 2, kernel_size=3, stride=1, padding=1
+        )
+        self.fc1 = nn.Linear(start_dim * 2 * input_shape[0] * input_shape[1], 1024)
         self.fc2 = nn.Linear(1024, 256)
         self.fc3 = nn.Linear(256, num_actions)
 
@@ -185,8 +188,8 @@ class DQNAgent:
             # 当 done = False 时，1 - done = 1，未来奖励被保留。
             target_q_values = rewards + (1 - dones) * self.gamma * max_next_q_values
 
-        # loss = F.mse_loss(current_q_values, target_q_values)
-        loss = F.smooth_l1_loss(current_q_values, target_q_values)
+        loss = F.mse_loss(current_q_values, target_q_values)
+        # loss = F.smooth_l1_loss(current_q_values, target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

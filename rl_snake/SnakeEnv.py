@@ -36,7 +36,8 @@ class SnakeEnv(SnakeGame):
         super().step(action)
         reward = -0.1  # 每步小惩罚，鼓励快速行动
         if self.game_over:
-            reward = -10  # 游戏结束惩罚
+            # reward = -10 - 0.5 * (len(self.snake) - 1)
+            reward = -20  # 游戏结束惩罚
         else:
             if len(self.snake) > prev_length:
                 reward = 20 + 0.5 * (len(self.snake) - 1)  # 吃食物奖励
@@ -53,6 +54,8 @@ class SnakeEnv(SnakeGame):
                 self.current_steps += 1
         if self.current_steps >= self.max_steps:
             self.game_over = True
-            reward = -10
+            reward = -20
+        if len(self.snake) > (self.width * self.height - 20):
+            reward += 150
 
         return self.get_state(), reward, self.steps, self.game_over
