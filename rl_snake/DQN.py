@@ -20,7 +20,7 @@ class DQN(nn.Module):
     - **输入**:状态是16x16的二维数组,加上通道维度后为(1, 16, 16)。
     - **卷积层**:提取游戏板的空间特征。
     - **全连接层**:将特征映射到4个动作的Q值。
-    - **输出**:4个Q值,对应`UP`, `DOWN`, `LEFT`, `RIGHT`。
+    - **输出**:4个Q值(选择这个动作的未来全部奖励), 对应`UP`, `DOWN`, `LEFT`, `RIGHT`。
     """
 
     def __init__(self, input_shape, num_actions, dropout=0.2):
