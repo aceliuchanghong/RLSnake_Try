@@ -23,7 +23,7 @@ class DQN(nn.Module):
     - **输出**:4个Q值(选择这个动作的未来全部奖励), 对应`UP`, `DOWN`, `LEFT`, `RIGHT`。
     """
 
-    def __init__(self, input_shape, num_actions, dropout=0.2):
+    def __init__(self, input_shape, num_actions, dropout=0.1):
         super(DQN, self).__init__()
         # Conv2d 输入是一个四维张量 (batch_size, channels, height, width) ==> (B,C,H,W)
         start_dim = 16
@@ -70,12 +70,12 @@ class DQNAgent:
         self,
         state_shape,
         num_actions,
-        lr=1e-3,
+        lr=2.5e-4,
         gamma=0.99,
         epsilon=1.0,
-        epsilon_min=0.02,
+        epsilon_min=0.05,
         epsilon_decay=0.999,
-        buffer_size=100000,
+        buffer_size=10000,
         batch_size=512,
     ):
         self.state_shape = state_shape
@@ -192,6 +192,10 @@ class DQNAgent:
         # loss = F.smooth_l1_loss(current_q_values, target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
+
+        # --- 增加梯度裁剪 ---
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
+
         self.optimizer.step()
 
         if self.epsilon > self.epsilon_min:

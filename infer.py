@@ -28,4 +28,4 @@ if __name__ == "__main__":
         action = ["UP", "DOWN", "LEFT", "RIGHT"][action_idx]
         _, reward_now, _, _ = game.step(action)
         total_reward += reward_now
-        game.render(speed=0.01, other_info={"Reward": total_reward})
+        game.render(speed=0.1, other_info={"Reward": total_reward})
