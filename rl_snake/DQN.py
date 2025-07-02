@@ -173,6 +173,11 @@ class DQNAgent:
         index_tensor[0][0]
         index_tensor[1][0]
         """
+
+        """
+        `current_q_values` 代表了 `policy_net` 对在当前状态 `states` 下，**实际执行的动作 `actions`** 所能获得的未来累积奖励的**估计**
+        这是 `policy_net` 目前学到的知识的体现 可以看作是它对 $Q(s\_j, a\_j)$ 的一个**预测**
+        """
         current_q_values = (
             # states = (B,) ==> policy_net = (B, num_actions) ==> actions=4, unsqueeze = (4, 1)
             # ==> gather 沿着第二个维度（dim=1）收集 Q 值 ==> squeeze 移除第二个维度 转换为形状为 (B,)

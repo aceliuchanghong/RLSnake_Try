@@ -29,7 +29,7 @@ if __name__ == "__main__":
     agent = DQNAgent(state_shape, num_actions)
     actions = ["UP", "DOWN", "LEFT", "RIGHT"]
 
-    num_epochs = 100000
+    num_epochs = 200000
     target_update_freq = 200
     target_save_freq = 2000
     update_freq = 20  # 每20步更新一次网络
