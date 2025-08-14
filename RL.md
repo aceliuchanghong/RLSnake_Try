@@ -1,43 +1,284 @@
-### PPO
+## RL
+
+```
+REINFORCE (1992) → Actor-Critic → A2C (2016) → A3C (2016) → PPO (2017) → GRPO → GSPO
+                ↘ DQN (2013/2015) [基于价值的分支]
+```
+
+
+>##### 简单RL示例场景：CartPole
+>* **目标**：控制一辆小车左右移动，来让车上的杆子保持竖直不倒。
+>* **状态 (State)**：一个包含4个数字的向量，分别代表 [小车位置, 小车速度, 杆子角度, 杆子顶端速度]。
+>* **动作 (Action)**：2个离散动作，`0` 代表向左推小车，`1` 代表向右推小车。
+>* **奖励 (Reward)**：只要杆子还没倒下，每经过一个时间步，就获得 `+1` 的奖励。
+>* **结束条件**：杆子倾斜超过一定角度，或者小车移动到屏幕边缘，一局游戏（episode）就结束了。
+
+### REINFORCE
+通常称其为**蒙特卡洛策略梯度** (Monte Carlo Policy Gradient)
+
+核心思想： 一个动作的好坏，应该由它最终带来的整个回报 (Return) 来评价。如果一个动作序列最终获得了很高的回报，那么我们就应该让我们策略网络，增大产生这个序列中每一个动作的概率。反之，如果回报很低，就降低它们的概率。
+
+1.  初始化一个策略网络 $\pi_\theta(a|s)$，它输入状态 `s`，输出一个动作 `a` 的概率分布。
+2.  用当前的策略网络 $\pi_\theta$ 与环境交互，从头到尾完整地玩一局（或多局），并**记录下整个轨迹** (trajectory)：$\tau = (s_0, a_0, r_1, s_1, a_1, r_2, \dots, s_T, a_T, r_{T+1})$。
+3.  对于轨迹中的**每一个时间步** `t`，计算从该时刻开始，到游戏结束的**未来总回报** $G_t$。
+    $$G_t = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{T-t} R_{T+1}$$
+目标是最大化一个策略的期望回报。这个期望回报通常用 $J(\theta)$ 来表示，它可以是多种形式，但最常见的是从初始状态 $s_0$ 开始的期望回报：
+$$J(\theta) = \mathbb{E}_{s_0 \sim \rho_0, a_t \sim \pi_\theta, s_{t+1} \sim p} [G_0]$$
+这里的 $G_0$ 是从 $s_0$ 开始的总回报。为了最大化 $J(\theta)$，我们需要计算它的梯度 $\nabla_\theta J(\theta)$
+
+4.  **策略梯度定理**: 策略的梯度可以表示为一个期望。这个期望的计算方式是：沿着一条轨迹 $\tau$，对每个时间步 $t$，将**策略在该时间步的对数概率梯度** $\nabla_\theta \log \pi_\theta(a_t|s_t)$ 乘以**从该时间步开始的未来总回报** $G_t$。，并使用梯度上升来更新策略网络的参数 $\theta$。
+    $$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} G_t \nabla_\theta \log \pi_\theta(a_t|s_t) \right]$$
+
+    在很多实现中，我们会对回报 $G_t$ 进行标准化，或者减去一个基线 (Baseline)，比如状态价值 $V(s_t)$。这可以显著降低方差。所以更通用的形式是：
+    $$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} (G_t - b(s_t)) \nabla_\theta \log \pi_\theta(a_t|s_t) \right]$$
+      * **$\log \pi_\theta(a_t|s_t)$**：这是我们实际采取的动作 $a_t$ 的对数概率。它的梯度 $\nabla_\theta \log \pi_\theta(a_t|s_t)$ 指明了参数更新的方向，这个方向可以**最大程度地提升** $a_t$ 的概率。
+      * **$G_t$**：这就是我们计算出的未来总回报。它在这里扮演了**权重**的角色。
+          * 如果 $G_t$ 是一个很大的正数，意味着从 $(s_t, a_t)$ 出发得到了好结果，那么我们就用一个大的权重去增强 $\log \pi_\theta(a_t|s_t)$ 的梯度，让策略更倾向于在 $s_t$ 选择 $a_t$。
+          * 如果 $G_t$ 是一个负数或很小的正数，意味着结果不好，我们就会用一个小的甚至负的权重，让策略减少在 $s_t$ 选择 $a_t$ 的倾向。
+
+5. **推导**
+
+- **期望到积分**：我们将期望写成对所有可能轨迹 $\tau$ 的积分形式：
+    $$
+    J(\theta) = \sum_{\tau} P(\tau; \theta) G(\tau)
+    $$
+    其中 $P(\tau; \theta)$ 是在策略 $\pi_\theta$ 下产生轨迹 $\tau$ 的概率，$G(\tau)$ 是这条轨迹的总回报。
+- **对数导数技巧**（Log-derivative Trick）：这是一个非常关键的数学技巧。我们知道：
+    $$
+    \nabla_\theta P(\tau; \theta) = P(\tau; \theta) \frac{\nabla_\theta P(\tau; \theta)}{P(\tau; \theta)} = P(\tau; \theta) \nabla_\theta \log P(\tau; \theta)
+    $$
+    
+- **轨迹概率展开**：一条轨迹 $\tau = (s_0, a_0, \dots, s_T, a_T)$ 出现的概率，是由策略和环境的动态共同决定的：
+    $$
+    P(\tau; \theta) = p(s_0) \prod_{t=0}^{T} \pi_\theta(a_t|s_t) p(s_{t+1}|s_t, a_t)
+    $$
+    因此，它的对数概率是：
+    $$
+    \log P(\tau; \theta) = \log p(s_0) + \sum_{t=0}^{T} \log \pi_\theta(a_t|s_t) + \sum_{t=0}^{T} \log p(s_{t+1}|s_t, a_t)
+    $$
+- **求梯度**：现在我们对 $\log P(\tau; \theta)$ 求关于 $\theta$ 的梯度。因为环境的动态 $p(\dots)$ 不依赖于我们的策略参数 $\theta$，所以它们的梯度为零。
+    $$
+    \nabla_\theta \log P(\tau; \theta) = \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t)
+    $$
+    这个结果非常重要，它表明**轨迹概率的梯度，等于轨迹中所有动作对数概率梯度的和**。
+- **代入并整理**：我们将以上结果代回梯度公式中：
+    $$
+    \nabla_\theta J(\theta) = \nabla_\theta \sum_{\tau} P(\tau; \theta) G(\tau) = \sum_{\tau} G(\tau) \nabla_\theta P(\tau; \theta)
+    $$
+    应用对数导数技巧：
+    $$
+    = \sum_{\tau} G(\tau) P(\tau; \theta) \nabla_\theta \log P(\tau; \theta)
+    $$
+    代入上一步的求和结果：
+    $$
+    = \sum_{\tau} G(\tau) P(\tau; \theta) \left( \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) \right)
+    $$
+    最后，我们将求和 $\sum_{\tau} P(\tau; \theta) \dots$ 转换回期望 $\mathbb{E}_{\tau \sim \pi_\theta}[\dots]$ 的形式，就得到了最终的公式 其中，蒙特卡洛策略梯度使用从**当前时间步**开始的未来回报 $G_t$ 来代替了整个轨迹的回报 $G(\tau)$，所以最终的公式是：
+    $$
+    \nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} G_t \nabla_\theta \log \pi_\theta(a_t|s_t) \right]
+    $$
+这个公式的含义非常直观：它通过对**完整轨迹**的采样来**估计**策略梯度。如果在某个状态 $s_t$ 下采取了动作 $a_t$ 并最终获得了高回报 $G_t > 0$，那么我们就增大 $\log \pi_\theta(a_t|s_t)$ 的梯度，从而提高这个动作的概率。反之，如果回报低 ($G_t < 0$)，就降低这个动作的概率。这就是**蒙特卡洛策略梯度**的核心思想。
+
+### 从 REINFORCE 到 Actor-Critic
+
+A-C核心思想是：**不再使用完整但充满噪声的 $G_t$，而是引入一个“评论家(Critic)”来提供一个更稳定、更及时的反馈信号。**
+
+REINFORCE 的两个核心问题：
+
+1.  **高方差 (High Variance)**：使用完整的未来总回报 $G_t$ 作为更新权重，这个值非常不稳定、充满噪声。就像打靶，虽然平均方向是对的，但每一枪都可能偏得很远。
+2.  **更新效率低 (Low Efficiency)**：必须等一整局游戏结束后，才能开始学习。如果游戏一局要玩很久，那智能体就要“憋”很久才能学一次。
+
+#### 引入“评论家”来解决问题
+
+**1. 解决“高方差”问题：用优势函数替代总回报**
+
+REINFORCE 用 $G_t$ 来评价动作 $a_t$ 的好坏。但 $G_t$ 的好坏，很大程度上取决于你所在的状态 $s_t$ 本身有多好。比如在 CartPole 里，杆子快倒了（坏状态），就算你做出最优动作，最终的总回报可能还是很低。
+
+我们需要一个更公平的评价标准：**在当前状态 $s_t$ 下，我采取的动作 $a_t$ 究竟是比平均水平好，还是差？**
+
+这就是 **优势函数 (Advantage Function) $A(s, a)$** 的概念。
+$$A(s, a) = Q(s, a) - V(s)$$
+
+  * $V(s)$ (状态价值)：代表在状态 $s$ 的“平均”价值。
+  * $Q(s, a)$ (状态-动作价值)：代表在状态 $s$ 采取特定动作 $a$ 后的价值。
+  * $A(s, a)$ (优势值)：衡量动作 $a$ 相对于该状态下平均动作的“优势”。
+      * 如果 $A(s,a) > 0$，说明动作 $a$ 比平均水平好，值得鼓励。
+      * 如果 $A(s,a) < 0$，说明动作 $a$ 比平均水平差，需要抑制。
+
+这个优势值 $A$ 是一个比 $G_t$ 更稳定、更有效的学习信号。
+
+**2. 解决“更新效率”问题：使用时序差分 (TD) 进行单步更新**
+
+我们怎么得到优势函数 $A(s, a)$ 呢？我们需要 $Q$ 值和 $V$ 值。这时，“评论家(Critic)”就登场了。
+
+  * **评论家 (Critic)**：一个独立的神经网络，它的唯一任务就是学习状态价值函数 $V(s)$。它会看着“演员(Actor)”的表演，并对演员所处的每一个状态打分。
+
+有了 Critic 给出的 $V(s)$，我们可以用**时序差分误差 (TD Error)** 来近似优势函数 $A(s_t, a_t)$：
+$$\text{TD Error} = \delta_t = \underbrace{(R_{t+1} + \gamma V(S_{t+1}))}_{\text{TD Target (更准确的V值估计)}} - \underbrace{V(S_t)}_{\text{Critic当前的V值估计}}$$
+这个 TD Error 恰好就是优势函数的一个很好的估计！它只依赖于**下一步**的信息 ($R_{t+1}, S_{t+1}$)，而不需要等到游戏结束。
+
+这使得智能体**每走一步就可以学习一次**，极大地提高了学习效率。
+
+#### 演员 (Actor) 和 评论家 (Critic) 的分工
+
+现在我们的框架里有了两个角色：
+
+  * **演员 (Actor)**：就是我们之前的策略网络 $\pi_\theta(a|s)$。它负责根据状态**做出动作决策**。它不再听从 $G_t$ 的指导，而是听从 Critic 算出的优势信号 $\delta_t$。
+
+      * **Actor 的更新目标**：最大化 $\log\pi_\theta(a_t|s_t) \times \delta_t$。
+
+  * **评论家 (Critic)**：一个价值网络 $V_\phi(s)$。它负责**评价状态的好坏**，并为 Actor 提供更精确的指导信号 $\delta_t$。它通过最小化 TD Error 来学习，让自己的价值判断越来越准。
+
+      * **Critic 的更新目标**：最小化 $( (R_{t+1} + \gamma V_\phi(S_{t+1})) - V_\phi(S_t) )^2$。
+
+两者相互协作，共同进步。演员努力做出更好的动作，评论家努力做出更准的评价。
+
+
+### 从 Actor-Critic 到 A2C
+
+当前的 Actor-Critic 是**单步更新**的，即每与环境交互一步，就计算一次损失并更新网络。这虽然比 REINFORCE 高效，但单步的 TD-Error 依然存在一定的噪声。A2C 通过引入两个关键改进来提升性能和稳定性
+
+#### 改进1：N-step 更新 (N-step Updates)
+
+  * **思想**: 不再只看下一步，而是向前看 N 步，然后用 Critic 对第 N+1 步的状态进行价值估计。这在“高效率”（不需要等整个 episode）和“低方差”（N步回报比单步回报更准确）之间取得了更好的平衡。
+
+  * **N-step 回报 (Return)**:
+    $$G_{t:t+N} = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{N-1}R_{t+N} + \gamma^N V_\phi(S_{t+N})$$
+    这里的 $V_\phi(S_{t+N})$ 是由 Critic 网络提供的。
+
+#### 改进2：加入熵正则化 (Entropy Regularization)
+
+  * **思想**: 在 Actor 的损失函数中，加入一项策略的“熵”（Entropy）。熵衡量了策略输出的随机性。鼓励更高的熵，就是鼓励智能体进行更多的**探索 (Exploration)**，避免它过早地收敛到一个次优策略（比如在 CartPole 里只会往一个方向推）。
+
+  * **新的 Actor Loss**:
+    $$L_{\text{actor}} = - \mathbb{E} [\log\pi_\theta(a_t|s_t) A_t] - \beta \cdot H(\pi_\theta(s_t))$$
+    其中 $H(\pi_\theta(s_t))$ 是策略在状态 $s_t$ 的熵，$\beta$ 是一个控制熵奖励大小的超参数。
+
+### 从 A2C 到 PPO
+
 
 **Proximal Policy Optimization**（近端策略优化）
 
 PPO的核心思想是在更新策略时，既要最大化期望回报，又不能让新策略偏离旧策略太远。
 
-
-| 特征 | DQN (Deep Q-Network) | PPO (Proximal Policy Optimization) |
-| :--- | :--- | :--- |
-| **算法类别** | **基于价值 (Value-Based)** | **基于策略 (Policy-Based)** |
-| **学习目标** | 学习一个**Q函数** $Q(s, a)$，来估计在状态`s`下采取动作`a`的好坏。策略是隐式的（通常是ε-贪婪） | 直接学习一个**策略** $\pi(a\|s)$ 该策略会直接输出在状态`s`下应该采取每个动作的概率。 |
-| **数据使用** | **离策略 (Off-Policy)** 使用一个大的经验回放缓冲区 (`Replay Buffer`)，从中随机采样，打破数据相关性，提高样本效率。 | **在策略 (On-Policy)** 每次更新只使用最新一轮与环境交互收集到的数据，然后丢弃。它不能使用旧数据。 |
-| **网络结构** | 通常只有一个网络（或两个：`policy_net`, `target_net`）来预测所有动作的Q值。 | 通常有两个独立或共享部分网络：**Actor**（策略网络）和 **Critic**（价值网络）。 |
-| **动作空间** | 主要用于**离散**动作空间。 | 可以轻松处理**离散**和**连续**动作空间。 |
-| **核心优势** | 样本效率高（因为重复利用旧数据）。 | 训练过程更稳定、更可靠，对超参数不那么敏感。 |
-
-PPO 的核心是使用**剪切概率比**（Clipped Surrogate Objective）来更新策略。它的目标函数可以表示为：
+使用**剪切概率比**（Clipped Surrogate Objective）来更新策略。它的目标函数可以表示为：
 $$
 L(\theta) = \mathbb{E}_t \left[ \min \left( r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t \right) \right]
 $$
 其中：
 - $\theta$：策略网络的参数。
 - $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$：新旧策略的概率比。
-- $\hat{A}_t$：优势函数（Advantage Function），衡量动作的相对好坏。
+- $\hat{A}_t$：优势函数，衡量动作的相对好坏。
 - $\epsilon$：剪切参数（通常为 0.1 或 0.2），限制策略更新的幅度。
 - $\text{clip}(x, a, b)$：将 $x$ 限制在 $[a, b]$ 范围内。
 
+![](z_using_files/describe_imgs/ppo&grpo.png)
+
+#### 图片解释
+
+##### **(1) Policy Model（策略模型）**
+- **作用**：根据当前状态 $ q $ 生成动作分布，指导智能体在环境中采取行动。
+- **输入**：环境状态 $ q $。
+- **输出**：动作概率分布 $ \pi(a|q) $，用于选择动作。
+- **更新目标**：通过优化策略参数，使得策略能够产生更高的期望奖励。
+
+##### **(2) Value Model（价值模型）**
+- **作用**：估计当前状态的价值 $ v $，即从当前状态开始，按照当前策略执行所能获得的未来累计奖励的期望值。
+- **输入**：环境状态 $ q $。
+- **输出**：状态价值 $ v(q) $。
+- **更新目标**：通过最小化价值估计与真实回报之间的误差，提高价值函数的准确性。
+
+##### **(3) Reward Model（奖励模型）**
+- **作用**：计算或预测当前状态下的即时奖励 $ r $。
+- **输入**：环境状态 $ q $ 或其他相关信息。
+- **输出**：即时奖励 $ r $。
+- **更新目标**：准确评估当前状态或动作的即时奖励，为策略优化提供反馈。
+
+##### **(4) Reference Model（参考模型）**
+- **作用**：保存上一轮迭代的策略模型参数，用于计算新策略与旧策略之间的 KL 散度，确保策略更新的幅度可控。
+- **输入**：上一轮的策略模型参数。
+- **输出**：KL 散度 $ KL $，衡量新旧策略之间的差异。
+- **更新目标**：通过 KL 散度约束，防止策略更新过大，避免性能崩溃。
+
+##### **(5) GAE（Generalized Advantage Estimation）**
+- **作用**：计算优势函数（Advantage Function），用于评估动作相对于基准的表现。
+- **输入**：即时奖励 $ r $、状态价值 $ v $ 和超参数（如折扣因子 $ \gamma $ 和衰减因子 $ \lambda $）。
+- **输出**：优势值 $ A $，表示采取某个动作比平均表现更好的程度。
+- **更新目标**：通过优势值指导策略更新，使策略倾向于选择更有利的动作。
+
+#### 执行步骤
+
+##### **(1) 策略执行与数据收集**
+- 策略模型 $ \pi(a|q) $ 根据当前状态 $ q $ 生成动作分布，并从中采样动作。
+- 智能体在环境中执行动作，收集状态 $ q $、动作 $ a $、即时奖励 $ r $ 和下一个状态 $ q' $ 等信息。
+
+##### **(2) 奖励与价值估计**
+- **Reward Model** 计算即时奖励 $ r $。
+- **Value Model** 估计当前状态的价值 $ v(q) $ 和下一个状态的价值 $ v(q') $。
+
+##### **(3) 优势函数计算**
+- 使用 GAE 方法计算优势值 $ A $：
+  $$
+  A_t = \delta_t + \gamma \lambda \delta_{t+1} + (\gamma \lambda)^2 \delta_{t+2} + \cdots
+  $$
+  其中：
+  $$
+  \delta_t = r_t + \gamma v(s_{t+1}) - v(s_t)
+  $$
+  这里 $ \gamma $ 是折扣因子，$ \lambda $ 是衰减因子。
+
+##### **(4) 策略更新**
+- **KL 散度约束**：计算新策略与旧策略之间的 KL 散度 $ KL $，确保策略更新的幅度不超过预设阈值。
+- **目标函数优化**：最大化以下目标函数：
+  $$
+  L^{CLIP}(\theta) = \mathbb{E} \left[ \min \left( r_t(\theta) A_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) A_t \right) \right]
+  $$
+  其中：
+  $$
+  r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
+  $$
+  表示新旧策略的概率比。
+
+##### **(5) 价值函数更新**
+- 更新价值模型，最小化价值估计与真实回报之间的均方误差：
+  $$
+  L^V(\theta_v) = \mathbb{E} \left[ (v_\theta(s_t) - R_t)^2 \right]
+  $$
+  其中 $ R_t $ 是使用 GAE 计算的蒙特卡洛回报。
+
+### 从 PPO 到 GRPO
+
+cc
+### 从 GRPO 到 GSPO
+
+ff
+
 ---
 
-#### 相关定义
+### 相关定义
 
-##### **回报 (Return)**
+#### **贝尔曼公式**
+
+当前状态（或状态-动作对）的值等于即时奖励加上未来值的折扣期望。
+- 基于Q函数（动作值函数），考虑状态-动作对的值，适用于需要显式选择动作的场景（如Q-learning）
+$$
+Q(s, a) = E[R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) | S_t = s, A_t = a]
+$$
+- 基于V函数（状态值函数），只关注状态的值，适用于策略评估或值迭代。
+$$
+V(i, j) \leftarrow R(i, j, \pi(i, j)) + \gamma V(\text{next\_state}(i, j, \pi(i, j)))
+$$
+
+#### **回报 (Return)**
    
 **回报 (Return, $G_t$)**: 从时间步 $t$ 开始，未来所有奖励的折扣总和。它代表了从当前时刻开始，在一个具体的轨迹（episode）中，我们**实际**能获得的总收益。
     $$G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \dots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}$$
     其中 $R_{t+1}$ 是在 $t+1$ 时刻获得的即时奖励，$\gamma$ 是折扣因子。
 
-##### **V值 (State-Value Function, $V(s)$)**
+#### **V值 (State-Value Function, $V(s)$)**
 
 **直观理解：** 状态 $s$ 有多好？
+
 **定义：** V值，即状态价值函数 $V_\pi(s)$，衡量的是当Agent从状态 $s$ 出发，并**遵循策略 $\pi$** 进行决策时，它所能获得的**期望回报**。
 $$V_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]$$
 
@@ -45,15 +286,16 @@ $$V_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]$$
 这个公式回答的问题是：“如果我现在处于状态 $s$，并且我接下来的所有行为都遵循我的策略 $\pi$，那么平均下来我能得到多少总回报？”
 在PPO算法中，**Critic网络** 的职责就是学习并估计这个 $V(s)$。给定一个状态，Critic会输出一个数值，这个数值就是对该状态价值的估计。
 
-##### **Q值 (Action-Value Function, $Q(s, a)$)**
+#### **Q值 (Action-Value Function, $Q(s, a)$)**
 
 **直观理解：** 在状态 $s$ 下，执行动作 $a$ 有多好?
+
 **定义：** Q值，即动作价值函数 $Q_\pi(s, a)$，衡量的是当Agent在状态 $s$ **选择了特定的动作 $a$**，然后**在后续所有步骤中遵循策略 $\pi$** 时，它所能获得的**期望回报**。
 $$Q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]$$
 
 这个公式回答的问题是：“如果我现在处于状态 $s$，并且我**强制**执行动作 $a$，之后再让我的策略 $\pi$ 接管，那么平均下来我能得到多少总回报？”
 
-##### **时序差分(Temporal-Difference, TD)**
+#### **时序差分(Temporal-Difference, TD)**
 
 利用当前对未来的估计，来更新更早的估计
 
@@ -80,9 +322,8 @@ TD误差是在时间步 $t$ 产生的一个信号，它衡量了我们**当前�
     \delta_t = \underbrace{(R_{t+1} + \gamma V(S_{t+1}))}_{\text{TD Target (新估计)}} - \underbrace{V(S_t)}_{\text{旧估计}}
     $$
 
----
 
-#### 1. 优势函数 (Advantage Function)
+#### **优势函数 (Advantage Function)**
 
 优势函数衡量在状态 $s$ 采取动作 $a$ 比平均水平好多少。
 $$A(s, a) = Q(s, a) - V(s)$$在实践中，我们无法得到真实的Q值和V值，所以我们用估计值。一个简单的方法是：$$\hat{A}_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$$
@@ -92,7 +333,7 @@ $$A(s, a) = Q(s, a) - V(s)$$在实践中，我们无法得到真实的Q值和V�
 $$\hat{A}_t^{GAE}(\gamma, \lambda) = \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}$$
 其中 $\delta_{t+l} = r_{t+l} + \gamma V(s_{t+l+1}) - V(s_{t+l})$ 是时序差分误差 (TD Error)。
 
-#### 2. Actor 损失 (Clipped Surrogate Objective)
+#### **Actor 损失 (Clipped Surrogate Objective)**
 
 这是PPO的灵魂。我们定义策略概率比率 $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}$，其中 $\pi_{\theta_{old}}$ 是收集数据时的旧策略。
 
@@ -107,175 +348,17 @@ $$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min\left( r_t(\theta) \hat{A}_t,
       * 同理，即使优势特别小，我们也不会让策略的惩罚过猛（被 $1-\epsilon$ 卡住）。
   * **$\min(\dots)$：** 我们取这两项中较小的一个作为最终的目标。这形成了一个“悲观”的下界，确保了更新的保守性和稳定性。
 
-#### 3. Critic 损失
+#### **Critic 损失**
 
 这个很简单，就是价值网络预测值 $V_\phi(s_t)$ 和我们计算出的价值目标（也叫`Returns`）$V_{target}$ 之间的均方误差。
 $$L^{VF}(\phi) = \left( V_\phi(s_t) - V_{target} \right)^2$$
 其中 $V_{target}$ 通常是 $R_{t} + \gamma V_{target}(s_{t+1})$。
 
 
-- net.py
 
-```python
-import torch
-import torch.nn as nn
+#### **GAE的直观解释：一个聪明的加权平均**
 
-# Actor和Critic可以共用一个网络主体，或者完全分开
-# 这里使用一个共享主干的网络
-class ActorCritic(nn.Module):
-    def __init__(self, input_shape, num_actions):
-        super(ActorCritic, self).__init__()
-        # 共享的卷积和全连接层
-        self.shared_base = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Flatten(),
-            nn.Linear(32 * input_shape[0] * input_shape[1], 256),
-            nn.ReLU()
-        )
-        
-        # Actor head: 输出动作的logits
-        self.actor_head = nn.Linear(256, num_actions)
-        
-        # Critic head: 输出状态的价值
-        self.critic_head = nn.Linear(256, 1)
-
-    def forward(self, x):
-        base_output = self.shared_base(x)
-        action_logits = self.actor_head(base_output)
-        state_value = self.critic_head(base_output)
-        return action_logits, state_value
-```
-
-- PPOAgent.py
-
-```python
-import torch
-import torch.nn as nn
-# 用于从策略分布中采样
-from torch.distributions import Categorical
-
-class PPOAgent:
-    def __init__(
-        self,
-        state_shape,
-        num_actions,
-        lr=2.5e-4,
-        gamma=0.99,
-        gae_lambda=0.95, # GAE参数
-        clip_epsilon=0.2, # PPO裁剪参数
-        epochs=10,        # 每次数据更新的迭代次数
-        batch_size=64,
-    ):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.gamma = gamma
-        self.gae_lambda = gae_lambda
-        self.clip_epsilon = clip_epsilon
-        self.epochs = epochs
-        self.batch_size = batch_size
-
-        self.network = ActorCritic(state_shape, num_actions).to(self.device)
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=lr)
-        
-        # PPO是on-policy，需要一个临时存储
-        self.memory = [] # 一个简单的列表来存储轨迹
-
-    def store_transition(self, state, action, log_prob, reward, done, value):
-        # 存储一次交互的完整信息
-        self.memory.append((state, action, log_prob, reward, done, value))
-        
-    def clear_memory(self):
-        self.memory = []
-
-    def select_action(self, state):
-        # 与DQN不同，这里总是从策略网络中采样
-        state = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0).to(self.device)
-        with torch.no_grad():
-            action_logits, state_value = self.network(state)
-        
-        # 从logits创建概率分布
-        action_dist = Categorical(logits=action_logits)
-        # 从分布中采样一个动作
-        action = action_dist.sample()
-        # 计算该动作的对数概率，用于后续更新
-        log_prob = action_dist.log_prob(action)
-        
-        return action.item(), log_prob.item(), state_value.item()
-
-    def update(self):
-        # 1. 从内存中解包所有数据
-        states, actions, old_log_probs, rewards, dones, values = zip(*self.memory)
-        
-        # 2. 计算优势(Advantage)和回报(Returns)
-        advantages = torch.zeros(len(rewards), dtype=torch.float32).to(self.device)
-        last_advantage = 0
-        
-        # 从后往前计算GAE
-        for t in reversed(range(len(rewards) - 1)):
-            if dones[t]:
-                td_error = rewards[t] - values[t]
-                last_advantage = td_error
-            else:
-                td_error = rewards[t] + self.gamma * values[t+1] - values[t]
-                last_advantage = td_error + self.gamma * self.gae_lambda * last_advantage
-            advantages[t] = last_advantage
-            
-        returns = advantages + torch.tensor(values[:-1], dtype=torch.float32).to(self.device) # 计算价值目标
-        
-        # 数据转换
-        states = torch.FloatTensor(np.array(states[:-1])).unsqueeze(1).to(self.device)
-        actions = torch.tensor(actions[:-1], dtype=torch.int64).to(self.device)
-        old_log_probs = torch.tensor(old_log_probs[:-1], dtype=torch.float32).to(self.device)
-
-        # 3. 进行多轮(epochs)优化
-        for _ in range(self.epochs):
-            # 将数据分批
-            for index in range(0, len(states), self.batch_size):
-                # 获取当前批次的数据
-                batch_states = states[index : index + self.batch_size]
-                batch_actions = actions[index : index + self.batch_size]
-                batch_old_log_probs = old_log_probs[index : index + self.batch_size]
-                batch_advantages = advantages[index : index + self.batch_size]
-                batch_returns = returns[index : index + self.batch_size]
-
-                # 4. 计算当前策略的输出
-                new_logits, new_values = self.network(batch_states)
-                new_values = new_values.squeeze()
-                
-                new_dist = Categorical(logits=new_logits)
-                new_log_probs = new_dist.log_prob(batch_actions)
-                
-                # 5. 计算PPO损失
-                # Actor Loss
-                ratio = torch.exp(new_log_probs - batch_old_log_probs)
-                surr1 = ratio * batch_advantages
-                surr2 = torch.clamp(ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon) * batch_advantages
-                actor_loss = -torch.min(surr1, surr2).mean()
-                
-                # Critic Loss
-                critic_loss = F.mse_loss(new_values, batch_returns)
-                
-                # Entropy Bonus (可选，鼓励探索)
-                entropy = new_dist.entropy().mean()
-                
-                # 总损失
-                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy
-                
-                # 6. 梯度更新
-                self.optimizer.zero_grad()
-                total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
-                self.optimizer.step()
-                
-        # 7. 清空内存，为下一轮数据收集做准备
-        self.clear_memory()
-```
-
----
-
-#### GAE的直观解释：一个聪明的加权平均
+Generalized Advantage Estimation
 
 GAE的核心公式是：
 $$\hat{A}_t^{GAE}(\gamma, \lambda) = \sum_{l=0}^{\infty}(\gamma\lambda)^l \delta_{t+l}$$
