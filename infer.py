@@ -6,14 +6,14 @@ if __name__ == "__main__":
     """
     uv run infer.py
     """
-    device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     game = SnakeEnv(show=True)
 
     state_shape = (16, 16)
     num_actions = 4
     agent = DQNAgent(state_shape, num_actions)
     agent.policy_net.load_state_dict(
-        torch.load("rl_model/dqn_snake_best_200000.pth", map_location=device)
+        torch.load("rl_model/dqn_snake_best.pth", map_location=device)
     )
     agent.policy_net.to(device)
     agent.policy_net.eval()
