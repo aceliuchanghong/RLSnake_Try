@@ -213,6 +213,8 @@ uv pip install .
 # win
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
 .venv/Scripts/activate
+
+$Env:PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 ```
 
 ### structure
