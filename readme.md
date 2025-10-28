@@ -206,6 +206,7 @@ Steps: 839, Score: 46, Direction: UP, Reward: 1510.400000000015
 ```shell
 uv init
 uv venv
+uv run install.py
 source .venv/bin/activate
 uv pip install .
 

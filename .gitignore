@@ -174,3 +174,6 @@ no_git_oic
 node_modules/
 .vscode/
 dqn_snake_best_*.pth
+00*
+logs/
+uv.lock
