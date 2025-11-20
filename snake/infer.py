@@ -1,10 +1,21 @@
 import torch
+import sys
+import os
+
+sys.path.insert(
+    0,
+    os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")),
+)
 from rl_snake.SnakeEnv import SnakeEnv
 from rl_snake.DQN import DQNAgent
 
 if __name__ == "__main__":
     """
-    uv run infer.py
+    uv run snake/infer.py
+
+    cpu 版本:
+        - uv pip uninstall torch
+        - uv pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall --no-cache-dir
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     game = SnakeEnv(show=True)

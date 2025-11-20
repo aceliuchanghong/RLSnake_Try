@@ -1,11 +1,17 @@
 import torch
-from rl_snake.SnakeEnv import SnakeEnv
-from rl_snake.DQN import DQNAgent
 import os
 from dotenv import load_dotenv
 import logging
 from termcolor import colored
 import csv
+import sys
+
+sys.path.insert(
+    0,
+    os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")),
+)
+from rl_snake.SnakeEnv import SnakeEnv
+from rl_snake.DQN import DQNAgent
 
 load_dotenv()
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -16,10 +22,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 if __name__ == "__main__":
     """
-    uv run train.py
-    nohup uv run train.py > no_git_oic/train.log 2>&1 &
+    uv run snake/train.py
+    nohup uv run snake/train.py > no_git_oic/train.log 2>&1 &
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = SnakeEnv(width=16, height=16)
